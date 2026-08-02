@@ -598,7 +598,7 @@ async function sendMessage(){
       },
       body: JSON.stringify({
         model: state.model,
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: buildSystemPrompt(),
         messages: state.history
       })
@@ -607,15 +607,25 @@ async function sendMessage(){
     if(!resp.ok){
       const errMsg = (data && data.error && data.error.message) ? data.error.message : ('erro HTTP ' + resp.status);
       addMsg('Deu erro ao falar com a API: ' + errMsg, 'sys');
-      refreshStatus();
+      state.history.pop(); // remove a pergunta do histórico pra poder tentar de novo sem corromper a conversa
       return;
     }
-    const reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '(sem resposta)';
+    // Procura o primeiro bloco de texto de verdade na resposta (alguns modelos podem
+    // mandar um bloco de "thinking" antes do texto — não dá pra assumir que é sempre o índice 0).
+    const textBlock = Array.isArray(data.content) ? data.content.find(b => b && b.type === 'text' && b.text) : null;
+    if(!textBlock){
+      console.error('Resposta inesperada da API Anthropic:', data);
+      addMsg('A SABIA recebeu uma resposta que não conseguiu interpretar. Tente de novo — se persistir, abra o console (F12) pra ver os detalhes.', 'sys');
+      state.history.pop();
+      return;
+    }
+    const reply = textBlock.text;
     state.history.push({role:'assistant', content: reply});
     addMsg(reply, 'bot');
     speak(reply);
   } catch(err){
     addMsg('Falha de conexão com a API: ' + err.message, 'sys');
+    state.history.pop();
   } finally {
     sendBtn.disabled = false;
     refreshStatus();

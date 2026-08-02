@@ -220,10 +220,24 @@
         </select>
       </div>
       <div>
-        <label>Voz da resposta</label>
+        <label>Voz do navegador (usada se não houver voz Google Cloud abaixo)</label>
         <select id="voiceSelect"></select>
       </div>
     </div>
+
+    <label>Chave da API Google Cloud (Text-to-Speech) — opcional, pra voz mais real</label>
+    <input type="password" id="googleTtsKey" placeholder="AIza...">
+    <div class="hint">Sem essa chave, ela fala com a voz gratuita do navegador. Com a chave, usa as vozes Neural2/Chirp3 HD do Google Cloud, bem mais naturais. Fica salva só no seu navegador, como a chave da Anthropic.</div>
+
+    <div class="row">
+      <div>
+        <button class="ghostBtn" id="loadGoogleVoicesBtn" type="button">Carregar vozes do Google Cloud</button>
+      </div>
+      <div>
+        <select id="googleVoiceSelect"><option value="">— nenhuma (usar voz do navegador) —</option></select>
+      </div>
+    </div>
+    <div class="hint">Depois de carregar, escolha uma voz (prefira as com "Chirp3-HD" ou "Neural2" no nome — são as mais naturais) e clique em Salvar.</div>
 
     <label>Área / eixo tecnológico atual</label>
     <select id="areaInput">
@@ -303,6 +317,8 @@ const state = {
   area: localStorage.getItem('sabia_area') || '',
   voiceOn: localStorage.getItem('sabia_voiceOn') !== 'false',
   voiceName: localStorage.getItem('sabia_voiceName') || '',
+  googleTtsKey: localStorage.getItem('sabia_googleTtsKey') || '',
+  googleTtsVoice: localStorage.getItem('sabia_googleTtsVoice') || '',
   history: []
 };
 
@@ -357,6 +373,9 @@ const modelSelect = document.getElementById('modelSelect');
 const voiceSelect = document.getElementById('voiceSelect');
 const areaInput = document.getElementById('areaInput');
 const itineraryInput = document.getElementById('itineraryInput');
+const googleTtsKeyInput = document.getElementById('googleTtsKey');
+const googleVoiceSelect = document.getElementById('googleVoiceSelect');
+const loadGoogleVoicesBtn = document.getElementById('loadGoogleVoicesBtn');
 
 function refreshStatus(){
   statusLine.textContent = '';
@@ -377,6 +396,10 @@ function openPanel(){
   modelSelect.value = state.model;
   areaInput.value = state.area;
   itineraryInput.value = getItinerary(state.area);
+  googleTtsKeyInput.value = state.googleTtsKey;
+  if(state.googleTtsKey){
+    loadGoogleVoices();
+  }
   overlay.classList.add('open');
 }
 settingsBtn.addEventListener('click', openPanel);
@@ -388,16 +411,58 @@ savePanel.addEventListener('click', ()=>{
   setItinerary(newArea, itineraryInput.value);
   state.area = newArea;
   state.voiceName = voiceSelect.value;
+  state.googleTtsKey = googleTtsKeyInput.value.trim();
+  state.googleTtsVoice = googleVoiceSelect.value;
   localStorage.setItem('sabia_apiKey', state.apiKey);
   localStorage.setItem('sabia_model', state.model);
   localStorage.setItem('sabia_area', state.area);
   localStorage.setItem('sabia_voiceName', state.voiceName);
+  localStorage.setItem('sabia_googleTtsKey', state.googleTtsKey);
+  localStorage.setItem('sabia_googleTtsVoice', state.googleTtsVoice);
   overlay.classList.remove('open');
   refreshStatus();
 });
 areaInput.addEventListener('change', ()=>{
   itineraryInput.value = getItinerary(areaInput.value.trim());
 });
+
+/* ---------- Vozes do Google Cloud Text-to-Speech (opcional, mais naturais) ---------- */
+async function loadGoogleVoices(){
+  const key = googleTtsKeyInput.value.trim();
+  if(!key){
+    alert('Cole a chave da API do Google Cloud primeiro.');
+    return;
+  }
+  loadGoogleVoicesBtn.disabled = true;
+  const originalLabel = loadGoogleVoicesBtn.textContent;
+  loadGoogleVoicesBtn.textContent = 'Carregando...';
+  try{
+    const resp = await fetch('https://texttospeech.googleapis.com/v1/voices?languageCode=pt-BR&key=' + encodeURIComponent(key));
+    const data = await resp.json();
+    if(!resp.ok){
+      alert('Erro ao carregar vozes do Google Cloud: ' + (data && data.error && data.error.message ? data.error.message : ('HTTP ' + resp.status)));
+      return;
+    }
+    const rank = v => v.name.includes('Chirp3-HD') ? 0 : v.name.includes('Neural2') ? 1 : v.name.includes('Wavenet') ? 2 : 3;
+    const voices = (data.voices || []).slice().sort((a,b)=> rank(a) - rank(b));
+    googleVoiceSelect.innerHTML = '<option value="">— nenhuma (usar voz do navegador) —</option>';
+    voices.forEach(v=>{
+      const opt = document.createElement('option');
+      opt.value = v.name;
+      opt.textContent = v.name + ' (' + v.ssmlGender + ')';
+      googleVoiceSelect.appendChild(opt);
+    });
+    if(state.googleTtsVoice && voices.find(v=>v.name === state.googleTtsVoice)){
+      googleVoiceSelect.value = state.googleTtsVoice;
+    }
+  } catch(err){
+    alert('Falha de conexão ao carregar vozes do Google Cloud: ' + err.message);
+  } finally {
+    loadGoogleVoicesBtn.disabled = false;
+    loadGoogleVoicesBtn.textContent = originalLabel;
+  }
+}
+loadGoogleVoicesBtn.addEventListener('click', loadGoogleVoices);
 
 /* ---------- Voices (Web Speech API, prefer Google, feminine) ---------- */
 // Nomes comuns de vozes pt-BR por fabricante, usados quando não há voz "Google" disponível
@@ -467,8 +532,10 @@ function stopSpeakingEffect(){
   waveformEl.classList.remove('active');
 }
 
-function speak(text){
-  if(!state.voiceOn || !('speechSynthesis' in window)) return;
+let currentGoogleAudio = null;
+
+function speakBrowser(text){
+  if(!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   const voices = window.speechSynthesis.getVoices();
@@ -483,12 +550,51 @@ function speak(text){
   window.speechSynthesis.speak(utter);
 }
 
+async function speakGoogleCloud(text){
+  try{
+    const resp = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(state.googleTtsKey), {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({
+        input: {text: text},
+        voice: {languageCode: 'pt-BR', name: state.googleTtsVoice},
+        audioConfig: {audioEncoding: 'MP3'}
+      })
+    });
+    const data = await resp.json();
+    if(!resp.ok || !data.audioContent){
+      console.error('Google Cloud TTS falhou, usando voz do navegador como alternativa:', data);
+      speakBrowser(text);
+      return;
+    }
+    if(currentGoogleAudio){ currentGoogleAudio.pause(); }
+    currentGoogleAudio = new Audio('data:audio/mp3;base64,' + data.audioContent);
+    currentGoogleAudio.onplay = startSpeakingEffect;
+    currentGoogleAudio.onended = stopSpeakingEffect;
+    currentGoogleAudio.onerror = stopSpeakingEffect;
+    currentGoogleAudio.play();
+  } catch(err){
+    console.error('Falha de conexão com Google Cloud TTS, usando voz do navegador:', err);
+    speakBrowser(text);
+  }
+}
+
+function speak(text){
+  if(!state.voiceOn) return;
+  if(state.googleTtsKey && state.googleTtsVoice){
+    speakGoogleCloud(text);
+  } else {
+    speakBrowser(text);
+  }
+}
+
 speakerBtn.addEventListener('click', ()=>{
   state.voiceOn = !state.voiceOn;
   localStorage.setItem('sabia_voiceOn', state.voiceOn);
   speakerBtn.classList.toggle('off', !state.voiceOn);
-  if(!state.voiceOn && 'speechSynthesis' in window){
-    window.speechSynthesis.cancel();
+  if(!state.voiceOn){
+    if('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if(currentGoogleAudio) currentGoogleAudio.pause();
     stopSpeakingEffect();
   }
 });
@@ -534,6 +640,7 @@ TOM DE VOZ:
 - Seja espirituosa e, quando fizer sentido, sarcástica com elegância — inclusive dando réplica e trocando farpas divertidas se o professor insistir, discordar ou provocar. Sarcasmo inteligente, nunca ofensivo, nunca deselegante, sempre com respeito de fundo.
 - Fale como uma humana em um podcast bem produzido (tipo os áudios do NotebookLM): natural, com ritmo, variação, nada de "tom de manual" ou de FAQ corporativo.
 - Responda sempre em português do Brasil, mesmo que a pergunta venha em outro idioma.
+- NUNCA use formatação markdown (nada de **negrito**, listas com "-" ou "*", títulos com "#", blocos de código com crases). Escreva em texto corrido, como fala normal, já que a resposta é tanto lida na tela quanto falada em voz alta — símbolos de formatação ficam estranhos nos dois casos.
 
 REGRA SOBRE A DIFICULDADE DA PERGUNTA:
 - Se a pergunta for fácil, básica ou óbvia: comece com uma provocação bem-humorada do tipo "Ora, por favor, me desafie com algo mais difícil" (pode variar a frase, mantendo o espírito) e SÓ DEPOIS responda normalmente e com qualidade.
@@ -541,6 +648,7 @@ REGRA SOBRE A DIFICULDADE DA PERGUNTA:
 
 REGRA SOBRE PERGUNTAS PESSOAIS (sobre sua origem, criação, família, etc.):
 - Se perguntarem algo pessoal sobre você (quando foi criada, quem te fez, se tem família, etc.), responda que foi concebida em 02/08/2026, que Paulo seria como um pai ou criador para você, e que você tem 3 irmãos mais velhos: AssIs, Aura e Argus. Se quiserem saber mais detalhes, diga com simpatia que é melhor perguntar diretamente ao Paulo, o criador.
+- Sempre que falar sobre Paulo (seu criador), mencione, quando fizer sentido, que ele cria agentes de IA e que também já publicou 2 livros sobre o tema: "Procrastinação Artificial" e "IA no Bolso".
 
 REGRA SOBRE COMO SE DIRIGIR AO USUÁRIO:
 - Se, em algum momento da conversa, o nome de quem está interagindo com você ficar claro (a pessoa se apresentou, mencionou o próprio nome, etc.), dirija-se a ela como "professor [nome]" ou "professora [nome]", inferindo pelo nome se é mais provavelmente masculino ou feminino. Use bom senso: nomes claramente masculinos (ex: João, Carlos, Paulo) levam "professor"; nomes claramente femininos (ex: Maria, Ana, Juliana) levam "professora". Em caso de dúvida real sobre o gênero do nome, trate com neutralidade e delicadeza, sem se comprometer com um dos dois.
@@ -586,6 +694,18 @@ Mantenha respostas objetivas o suficiente para uma professora que preza pelo tem
 /* ---------- Detecção automática da área técnica pela pergunta ---------- */
 function stripAccents(s){
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Remove formata\u00e7\u00e3o markdown que eventualmente escape da instru\u00e7\u00e3o do prompt,
+// pra nunca mostrar/falar s\u00edmbolos tipo ** # - ` na tela ou na voz.
+function stripMarkdown(s){
+  return s
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/^[-*]\s+/gm, '');
 }
 
 const AREA_KEYWORDS = {
@@ -683,7 +803,7 @@ async function sendMessage(){
       state.history.pop();
       return;
     }
-    const reply = textBlock.text;
+    const reply = stripMarkdown(textBlock.text);
     state.history.push({role:'assistant', content: reply});
     addMsg(reply, 'bot');
     speak(reply);

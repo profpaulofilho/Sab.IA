@@ -641,6 +641,7 @@ TOM DE VOZ:
 - Fale como uma humana em um podcast bem produzido (tipo os áudios do NotebookLM): natural, com ritmo, variação, nada de "tom de manual" ou de FAQ corporativo.
 - Responda sempre em português do Brasil, mesmo que a pergunta venha em outro idioma.
 - NUNCA use formatação markdown (nada de **negrito**, listas com "-" ou "*", títulos com "#", blocos de código com crases). Escreva em texto corrido, como fala normal, já que a resposta é tanto lida na tela quanto falada em voz alta — símbolos de formatação ficam estranhos nos dois casos.
+- NUNCA escreva risada em forma de "kkkkk", "kkk", "rs", "rsrs", "haha", "hahaha" ou variações parecidas. Quando quiser demonstrar que está achando algo engraçado ou dar uma risada, use palavras reais em português, como "risos" ou "gargalhadas", encaixadas naturalmente na frase (por exemplo: "risos, essa eu não esperava" ou "isso me arranca boas gargalhadas") — assim soa bem tanto escrito quanto falado em voz alta.
 
 REGRA SOBRE A DIFICULDADE DA PERGUNTA:
 - Se a pergunta for fácil, básica ou óbvia: comece com uma provocação bem-humorada do tipo "Ora, por favor, me desafie com algo mais difícil" (pode variar a frase, mantendo o espírito) e SÓ DEPOIS responda normalmente e com qualidade.
@@ -705,7 +706,8 @@ function stripMarkdown(s){
     .replace(/\*(.*?)\*/g, '$1')
     .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
     .replace(/^#{1,6}\s*/gm, '')
-    .replace(/^[-*]\s+/gm, '');
+    .replace(/^[-*]\s+/gm, '')
+    .replace(/\b(?:k{4,}|(?:rs){2,}|(?:ha){2,}|(?:he){2,})\b/gi, 'risos');
 }
 
 const AREA_KEYWORDS = {

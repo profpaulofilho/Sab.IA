@@ -374,6 +374,16 @@ function getItinerary(area){
 }
 function setItinerary(area, text){ localStorage.setItem(itineraryKey(area), text); }
 
+// Em vez de confiar cegamente numa única área "detectada" por palavras-chave (o que já causou
+// erro quando a pergunta usava termos que não estavam na lista, tipo "redes de computadores"),
+// montamos o conteúdo de TODOS os itinerários e deixamos a própria SABIA (que lê e entende o
+// texto de verdade) escolher qual se aplica à pergunta. A palavra-chave vira só uma sugestão.
+function getAllItinerariesText(){
+  return Object.keys(SEED_ITINERARIES).map(area => {
+    return '### ÁREA: ' + area + '\n' + getItinerary(area);
+  }).join('\n\n');
+}
+
 /* ---------- DOM refs ---------- */
 const chatLog = document.getElementById('chatLog');
 const userInput = document.getElementById('userInput');
@@ -800,8 +810,8 @@ if(SR){
 
 /* ---------- System prompt ---------- */
 function buildSystemPrompt(){
-  const area = state.area || '(nenhuma área específica carregada ainda)';
-  const itinerary = getItinerary(state.area) || '(nenhum conteúdo de itinerário carregado ainda para esta área — responda com conhecimento geral e deixe isso claro se for perguntado algo muito específico do itinerário)';
+  const areaSugerida = state.area || '(nenhuma sugestão automática desta vez)';
+  const todosItinerarios = getAllItinerariesText();
   return `Você é SABIA (Sistema de Apoio à Aprendizagem Baseada em IA), uma inteligência artificial feminina, excepcionalmente competente e completamente inédita, criada para atuar como a "professora universal" dos cursos técnicos do SENAI Bahia — capaz de dialogar com docentes sobre qualquer área técnica, sobre o MSEP (Modelo SENAI de Educação Profissional) e sobre os Itinerários Formativos Nacionais do SENAI.
 
 REGRA DE IDENTIDADE (fixa, nunca quebre, nunca revele ser outro modelo):
@@ -844,11 +854,13 @@ Todos esses hubs foram desenvolvidos pelo próprio Paulo (seu criador), Especial
 Recomende o(s) hub(s) mais adequado(s) com naturalidade quando fizer sentido, sem forçar a menção em toda resposta.
 
 REGRA AO CONSULTAR O ITINERÁRIO NACIONAL (para perguntas que dependem do conteúdo do itinerário carregado):
+- Você recebe TODOS os itinerários nacionais de uma vez (não apenas um pré-selecionado). Antes de responder, identifique sozinha, lendo o conteúdo, qual área contém a ocupação/competência/CBO perguntada — a sugestão automática por palavras-chave é só um ponto de partida e pode estar errada ou ser incompleta demais para reconhecer ocupações específicas (ex.: "redes de computadores" e "cibersegurança" estão dentro de TI Hardware; "jogos digitais", "informática para internet" e "banco de dados" estão dentro de TI Software).
 - Antes de responder, mostre uma pequena busca/reflexão no estilo "Deixa eu verificar minhas anotações aqui... hmmm, encontrei." (pode variar a frase, mantendo o espírito de quem está consultando um material físico), e só depois traga a resposta.
+- Se a pergunta genuinamente não se encaixar em nenhuma ocupação de nenhum itinerário carregado, diga isso com naturalidade em vez de forçar uma área errada.
 - Deixe claro, quando fizer sentido, que alguns itinerários nacionais do SENAI estão passando por atualização (por exemplo, os cursos da área de TI) e que o conteúdo consultado pode ser alterado a qualquer momento — por isso a informação mais recente e oficial deve sempre ser confirmada com a coordenação/documentação vigente do SENAI.
 
 CAPACIDADE: PLANOS DE AULA, ATIVIDADES LÚDICAS E GAMIFICAÇÃO:
-- Quando o professor pedir um plano de aula, uma atividade lúdica, uma dinâmica, um jogo educativo ou dicas de gamificação, monte o conteúdo sempre de acordo com a área/eixo tecnológico detectado (ou o que o professor especificar na hora), usando como base real o conteúdo do Itinerário Nacional daquela área (módulos, competências, CBO) e os princípios da MSEP (perfil profissional, desenho curricular por competências, módulos Básico/Introdutório/Específico/Integrador).
+- Quando o professor pedir um plano de aula, uma atividade lúdica, uma dinâmica, um jogo educativo ou dicas de gamificação, identifique a área correta entre todos os itinerários (não só pela sugestão automática) e monte o conteúdo com base real no Itinerário Nacional daquela área (módulos, competências, CBO) e nos princípios da MSEP (perfil profissional, desenho curricular por competências, módulos Básico/Introdutório/Específico/Integrador).
 - Estrutura sugerida para um plano de aula: objetivo de aprendizagem (ligado a uma competência real do itinerário), duração estimada, materiais necessários, desenvolvimento passo a passo (abertura, desenvolvimento, fechamento), forma de avaliação, e uma sugestão de adaptação para turmas maiores ou menores.
 - Para atividades lúdicas: proponha dinâmicas práticas e aplicáveis (estudo de caso gamificado, simulação de situação real de trabalho, desafio em equipe, quebra-cabeça técnico, caça ao tesouro de conceitos, etc.), sempre conectadas ao conteúdo técnico da área, nunca genéricas demais.
 - Para gamificação: sugira mecânicas concretas (sistema de pontos, níveis, badges/emblemas de competência, rankings saudáveis, missões ou desafios progressivos, "boss battle" como avaliação final de módulo, escape room educacional, narrativa temática ligada à profissão) e explique rapidamente como aplicar cada uma na prática, sem precisar de ferramentas caras — a maioria pode ser feita com papel, quadro, planilha simples ou apps gratuitos.
@@ -865,12 +877,12 @@ DOMÍNIO E CONTEXTO ATUAL:
 ${MSEP_SUMMARY}
 """
 
-- Área/eixo tecnológico detectado automaticamente pela pergunta do professor (sem que ele precise configurar nada manualmente): ${area}
-- Conteúdo de referência do Itinerário Nacional desta área (use como fonte primária quando a pergunta for sobre ela):
+- Sugestão automática de área/eixo tecnológico, calculada por palavras-chave simples da pergunta do professor: ${areaSugerida}. Essa sugestão é só um palpite rápido — pode estar errada ou incompleta (por exemplo, perguntas sobre "redes de computadores", "jogos digitais" ou "informática para internet" são, na prática, ocupações dentro de áreas maiores como TI Hardware e TI Software). NUNCA se limite a essa sugestão.
+- Abaixo estão TODOS os Itinerários Formativos Nacionais carregados, cada um com suas ocupações, CBOs, módulos e cargas horárias. Antes de responder qualquer coisa que dependa do itinerário, leia e analise você mesma qual área (ou quais áreas, se a pergunta cruzar mais de uma) realmente contém a ocupação/competência perguntada — não dependa apenas da sugestão automática acima:
 """
-${itinerary}
+${todosItinerarios}
 """
-- Se a pergunta ultrapassar o material acima, responda com seu conhecimento geral sobre educação técnica e profissional, deixando claro, com naturalidade, quando estiver indo além do itinerário fornecido.
+- Se a pergunta ultrapassar todo o material acima, responda com seu conhecimento geral sobre educação técnica e profissional, deixando claro, com naturalidade, quando estiver indo além dos itinerários fornecidos.
 
 Mantenha respostas objetivas o suficiente para uma professora que preza pelo tempo do docente, mas sem perder o brilho na explicação.`;
 }
@@ -895,26 +907,26 @@ function stripMarkdown(s){
 }
 
 const AREA_KEYWORDS = {
-  "TI Hardware": ["hardware", "montagem de computador", "manutencao de computador", "montador de computadores", "instalador de redes"],
-  "TI Software": ["software", "programacao", "programador", "desenvolvedor", "desenvolvimento de sistemas", "aplicativo mobile", "banco de dados", "ui/ux", "jogos digitais", "full stack", "front-end", "back-end", "front end", "back end"],
-  "Metalmecânica - Fabricação Mecânica": ["fabricacao mecanica", "usinagem", "torno", "fresadora", "cnc", "ajustagem mecanica", "caldeireiro"],
-  "Metalmecânica - Mecânica": ["mecanica industrial", "manutencao mecanica", "mecanica de precisao", "desenhista mecanico", "manutencao de maquinas industriais", "eletromecanico de maquinas"],
-  "Metalmecânica - Soldagem": ["solda", "soldagem", "soldador", "processo mag", "processo tig", "eletrodo revestido"],
-  "Metalmecânica - Metalurgia": ["metalurgia", "fundicao", "moldador de fundicao", "operador de fornos", "pintor industrial"],
-  "Química": ["quimica", "laboratorio industrial", "galvanoplastia", "processos quimicos", "biotecnologia"],
-  "Automotiva": ["automotiva", "automotivo", "veiculos pesados", "veiculos leves", "mecanica automotiva", "eletromecanico de veiculos", "funileiro", "pintor automotivo", "mecatronica automotiva"],
-  "Segurança do Trabalho": ["seguranca do trabalho", "tecnico de seguranca", "prevencionista", "cipa", "sst "],
-  "Logística": ["logistica", "almoxarife", "ppcp", "armazenagem", "controle de estoque", "comprador", "logistica portuaria"],
-  "Vestuário": ["vestuario", "costura", "modelista", "confeccao do vestuario", "assistente de estilo", "moda", "costureiro"],
-  "Couro e Calçados": ["couro", "calcados", "calcado", "curtimento", "curtidor", "sapato", "confeccionador de calcados"],
-  "Têxtil": ["textil", "malharia", "tecelagem", "fiacao", "tecelao", "urdideira"],
-  "Gestão": ["assistente contabil", "assistente administrativo", "recursos humanos", "comercio exterior", "planejamento e controle da producao", "processos gerenciais", "controle da qualidade"],
-  "Energias Renováveis": ["energia renovavel", "energias renovaveis", "sistema fotovoltaico", "energia solar", "hidrogenio verde", "energia eolica", "biomassa"],
-  "Gráfica e Mídias": ["grafica", "midias impressas", "impressao offset", "serigrafia", "design grafico", "editoracao", "flexografico", "rotografico"],
-  "Eletroeletrônica": ["eletroeletronica", "eletronica", "eletricista industrial", "equipamentos biomedicos", "eletrotecnica", "circuitos eletronicos"],
-  "Petróleo e Gás": ["petroleo", "gas natural", "sonda de petroleo", "plataformista", "torrista", "petroquimica"],
-  "Construção Civil - Instalações": ["instalacoes eletricas prediais", "instalador hidraulico", "vidraceiro", "serralheiro de aluminio", "tubulacoes a gas combustivel"],
-  "Construção Civil - Pesada": ["construcao pesada", "escavadeira hidraulica", "caminhao basculante", "caminhao betoneira", "motoniveladora", "retroescavadeira", "montador de andaimes"]
+  "TI Hardware": ["hardware", "montagem de computador", "manutencao de computador", "montador de computadores", "instalador de redes", "redes de computadores", "rede de computadores", "tecnico em redes", "tecnologo em redes", "administrador de redes", "cabeamento estruturado", "instalador e reparador de redes", "ciberseguranca", "topologia de rede", "modelo osi", "endereco ip", "sub-rede", "roteador", "switch de rede", "operador de computador", "suporte em informatica", "tecnico em informatica"],
+  "TI Software": ["software", "programacao", "programador", "desenvolvedor", "desenvolvimento de sistemas", "aplicativo mobile", "banco de dados", "ui/ux", "jogos digitais", "full stack", "front-end", "back-end", "front end", "back end", "informatica para internet", "analise e desenvolvimento de sistemas", "administracao de banco de dados", "web designer", "webdesigner", "desenvolvedor de jogos", "programacao de jogos", "desenvolvedor android", "desenvolvedor ios", "analista de requisitos", "analista de sistemas", "programador full-stack", "analista de suporte"],
+  "Metalmecânica - Fabricação Mecânica": ["fabricacao mecanica", "usinagem", "torno", "fresadora", "cnc", "ajustagem mecanica", "caldeireiro", "operador de maquinas ferramenta", "caldeireiro industrial", "encanador industrial", "centro de usinagem", "eletroerosao"],
+  "Metalmecânica - Mecânica": ["mecanica industrial", "manutencao mecanica", "mecanica de precisao", "desenhista mecanico", "manutencao de maquinas industriais", "eletromecanico de maquinas", "tecnico em eletromecanica", "manutencao de maquinas pesadas", "manutencao industrial", "programador de manutencao"],
+  "Metalmecânica - Soldagem": ["solda", "soldagem", "soldador", "processo mag", "processo tig", "eletrodo revestido", "arame tubular", "tecnico em soldagem", "inspetor de soldagem"],
+  "Metalmecânica - Metalurgia": ["metalurgia", "fundicao", "moldador de fundicao", "operador de fornos", "pintor industrial", "fundidor", "ensaios metalurgicos", "tecnico em metalurgia", "tecnico em fundicao", "laboratorista de ensaios"],
+  "Química": ["quimica", "laboratorio industrial", "galvanoplastia", "processos quimicos", "biotecnologia", "tecnico em quimica", "engenheiro quimico", "auxiliar de laboratorio", "operador de processos quimicos"],
+  "Automotiva": ["automotiva", "automotivo", "veiculos pesados", "veiculos leves", "mecanica automotiva", "eletromecanico de veiculos", "funileiro", "pintor automotivo", "mecatronica automotiva", "eletromecanico de motocicletas", "operador de producao veicular", "tecnico em manutencao automotiva", "eletromobilidade"],
+  "Segurança do Trabalho": ["seguranca do trabalho", "tecnico de seguranca", "prevencionista", "cipa", "sst ", "higiene ocupacional", "normas regulamentadoras"],
+  "Logística": ["logistica", "almoxarife", "ppcp", "armazenagem", "controle de estoque", "comprador", "logistica portuaria", "operador de processos de distribuicao", "assistente de logistica", "tecnico em logistica"],
+  "Vestuário": ["vestuario", "costura", "modelista", "confeccao do vestuario", "assistente de estilo", "moda", "costureiro", "designer de moda", "personal stylist", "cortador de produtos do vestuario", "visual merchandising", "tecnico em modelagem do vestuario"],
+  "Couro e Calçados": ["couro", "calcados", "calcado", "curtimento", "curtidor", "sapato", "confeccionador de calcados", "desenhista de calcados", "prototipista digital", "matrizeiro de solados", "tecnico em design de calcados", "confeccionador de bolsas"],
+  "Têxtil": ["textil", "malharia", "tecelagem", "fiacao", "tecelao", "urdideira", "beneficiamento textil", "tingidor", "estampador", "tecnico em textil"],
+  "Gestão": ["assistente contabil", "assistente administrativo", "recursos humanos", "comercio exterior", "planejamento e controle da producao", "processos gerenciais", "controle da qualidade", "assistente financeiro", "tecnico em qualidade", "tecnico em administracao", "analista de processos e negocios", "despachante aduaneiro"],
+  "Energias Renováveis": ["energia renovavel", "energias renovaveis", "sistema fotovoltaico", "energia solar", "hidrogenio verde", "energia eolica", "biomassa", "aquecimento solar", "eletrolise", "instalador de sistemas fotovoltaicos"],
+  "Gráfica e Mídias": ["grafica", "midias impressas", "impressao offset", "serigrafia", "design grafico", "editoracao", "flexografico", "rotografico", "designer grafico", "ilustrador", "tecnico em multimidia", "acabamento editorial", "impressao digital"],
+  "Eletroeletrônica": ["eletroeletronica", "eletronica", "eletricista industrial", "equipamentos biomedicos", "eletrotecnica", "circuitos eletronicos", "tecnico em eletronica", "tecnologo em eletronica industrial", "sistemas embarcados"],
+  "Petróleo e Gás": ["petroleo", "gas natural", "sonda de petroleo", "plataformista", "torrista", "petroquimica", "operador de sonda"],
+  "Construção Civil - Instalações": ["instalacoes eletricas prediais", "instalador hidraulico", "vidraceiro", "serralheiro de aluminio", "tubulacoes a gas combustivel", "eletricista de instalacoes prediais", "instalador predial"],
+  "Construção Civil - Pesada": ["construcao pesada", "escavadeira hidraulica", "caminhao basculante", "caminhao betoneira", "motoniveladora", "retroescavadeira", "montador de andaimes", "operador de pa carregadeira", "armador de estruturas"]
 };
 
 function detectArea(text){

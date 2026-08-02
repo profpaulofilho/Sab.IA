@@ -167,6 +167,10 @@
   .panel .row > *{ flex:1; }
   .panelBtns{ display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
   .ghostBtn{ background:transparent; border:1px solid rgba(234,255,244,0.25); color:var(--text); padding:10px 16px; border-radius:10px; cursor:pointer; }
+  .voiceTestRow{ display:flex; gap:8px; }
+  .voiceTestRow select{ flex:1; min-width:0; }
+  .testBtn{ padding:10px 12px; white-space:nowrap; flex:none; }
+  .testBtn:disabled{ opacity:0.5; cursor:default; }
   .hint{ font-size:12px; color: var(--muted); margin-top:4px; }
 </style>
 </head>
@@ -226,7 +230,10 @@
       </div>
       <div>
         <label>Voz do navegador (usada se não houver voz Google Cloud abaixo)</label>
-        <select id="voiceSelect"></select>
+        <div class="voiceTestRow">
+          <select id="voiceSelect"></select>
+          <button class="ghostBtn testBtn" id="testVoiceBtn" type="button">▶ Testar</button>
+        </div>
       </div>
     </div>
 
@@ -239,10 +246,13 @@
         <button class="ghostBtn" id="loadGoogleVoicesBtn" type="button">Carregar vozes do Google Cloud</button>
       </div>
       <div>
-        <select id="googleVoiceSelect"><option value="">— nenhuma (usar voz do navegador) —</option></select>
+        <div class="voiceTestRow">
+          <select id="googleVoiceSelect"><option value="">— nenhuma (usar voz do navegador) —</option></select>
+          <button class="ghostBtn testBtn" id="testGoogleVoiceBtn" type="button">▶ Testar</button>
+        </div>
       </div>
     </div>
-    <div class="hint">Depois de carregar, escolha uma voz (prefira as com "Chirp3-HD" ou "Neural2" no nome — são as mais naturais) e clique em Salvar.</div>
+    <div class="hint">Depois de carregar, escolha uma voz (prefira as com "Chirp3-HD" ou "Neural2" no nome — são as mais naturais), clique em "Testar" pra ouvir antes, e depois em Salvar.</div>
 
     <label>Área / eixo tecnológico atual</label>
     <select id="areaInput">
@@ -381,6 +391,9 @@ const itineraryInput = document.getElementById('itineraryInput');
 const googleTtsKeyInput = document.getElementById('googleTtsKey');
 const googleVoiceSelect = document.getElementById('googleVoiceSelect');
 const loadGoogleVoicesBtn = document.getElementById('loadGoogleVoicesBtn');
+const testVoiceBtn = document.getElementById('testVoiceBtn');
+const testGoogleVoiceBtn = document.getElementById('testGoogleVoiceBtn');
+const TEST_PHRASE = 'Olá, esta é a voz da SABIA, sua professora universal do SENAI Bahia.';
 
 function refreshStatus(){
   statusLine.textContent = '';
@@ -480,6 +493,58 @@ async function loadGoogleVoices(){
 }
 loadGoogleVoicesBtn.addEventListener('click', loadGoogleVoices);
 
+// Testa a voz do navegador escolhida no dropdown, sem precisar salvar antes.
+testVoiceBtn.addEventListener('click', ()=>{
+  if(!('speechSynthesis' in window)){
+    alert('Este navegador não tem suporte a voz.');
+    return;
+  }
+  const voices = window.speechSynthesis.getVoices();
+  const chosen = voices.find(v => v.name === voiceSelect.value);
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(TEST_PHRASE);
+  if(chosen){ utter.voice = chosen; utter.lang = chosen.lang; }
+  utter.rate = 0.98;
+  utter.pitch = 1.05;
+  window.speechSynthesis.speak(utter);
+});
+
+// Testa a voz do Google Cloud escolhida no dropdown, usando a chave que estiver no campo
+// (mesmo que ainda não tenha sido salva), pra decidir antes de confirmar.
+testGoogleVoiceBtn.addEventListener('click', async ()=>{
+  const key = googleTtsKeyInput.value.trim();
+  const voiceName = googleVoiceSelect.value;
+  if(!key || !voiceName){
+    alert('Cole a chave da API do Google Cloud e escolha uma voz na lista primeiro.');
+    return;
+  }
+  testGoogleVoiceBtn.disabled = true;
+  const originalLabel = testGoogleVoiceBtn.textContent;
+  testGoogleVoiceBtn.textContent = '...';
+  try{
+    const resp = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(key), {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({
+        input: {text: TEST_PHRASE},
+        voice: {languageCode: 'pt-BR', name: voiceName},
+        audioConfig: {audioEncoding: 'MP3'}
+      })
+    });
+    const data = await resp.json();
+    if(!resp.ok || !data.audioContent){
+      alert('Erro ao testar a voz: ' + (data && data.error && data.error.message ? data.error.message : ('HTTP ' + resp.status)));
+      return;
+    }
+    new Audio('data:audio/mp3;base64,' + data.audioContent).play();
+  } catch(err){
+    alert('Falha de conexão ao testar a voz: ' + err.message);
+  } finally {
+    testGoogleVoiceBtn.disabled = false;
+    testGoogleVoiceBtn.textContent = originalLabel;
+  }
+});
+
 /* ---------- Voices (Web Speech API, prefer Google, feminine) ---------- */
 // Nomes comuns de vozes pt-BR por fabricante, usados quando não há voz "Google" disponível
 // (o navegador Edge, por exemplo, só expõe vozes da Microsoft, nunca vozes "Google").
@@ -566,32 +631,90 @@ function speakBrowser(text, onStart){
   window.speechSynthesis.speak(utter);
 }
 
-async function speakGoogleCloud(text, onStart){
-  try{
-    const resp = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(state.googleTtsKey), {
-      method: 'POST',
-      headers: {'content-type': 'application/json'},
-      body: JSON.stringify({
-        input: {text: text},
-        voice: {languageCode: 'pt-BR', name: state.googleTtsVoice},
-        audioConfig: {audioEncoding: 'MP3'}
-      })
-    });
-    const data = await resp.json();
-    if(!resp.ok || !data.audioContent){
-      console.error('Google Cloud TTS falhou, usando voz do navegador como alternativa:', data);
-      speakBrowser(text, onStart);
-      return;
+// A API do Google Cloud TTS aceita no máximo 5000 bytes de texto por chamada.
+// Respostas mais longas da SABIA passavam desse limite, a chamada falhava, e o código
+// caía (sem avisar) pra voz do navegador — trocando de voz no meio da conversa.
+// Pra manter SEMPRE a mesma voz do Google Cloud, dividimos o texto em pedaços seguros
+// e sintetizamos/tocamos cada pedaço em sequência, sem nunca trocar de motor de voz.
+function splitForTts(text, maxBytes){
+  const enc = new TextEncoder();
+  const rawParts = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+  const pieces = [];
+  for(const part of rawParts){
+    if(enc.encode(part).length <= maxBytes){
+      pieces.push(part);
+    } else {
+      const words = part.split(/\s+/);
+      let cur = '';
+      for(const w of words){
+        const cand = cur ? cur + ' ' + w : w;
+        if(enc.encode(cand).length > maxBytes && cur){
+          pieces.push(cur);
+          cur = w;
+        } else {
+          cur = cand;
+        }
+      }
+      if(cur) pieces.push(cur);
     }
-    if(currentGoogleAudio){ currentGoogleAudio.pause(); }
-    currentGoogleAudio = new Audio('data:audio/mp3;base64,' + data.audioContent);
-    currentGoogleAudio.onplay = ()=>{ startSpeakingEffect(); if(onStart) onStart(); };
-    currentGoogleAudio.onended = stopSpeakingEffect;
-    currentGoogleAudio.onerror = ()=>{ stopSpeakingEffect(); if(onStart) onStart(); };
-    currentGoogleAudio.play();
+  }
+  const chunks = [];
+  let current = '';
+  for(const p of pieces){
+    const candidate = current + p;
+    if(enc.encode(candidate).length > maxBytes && current){
+      chunks.push(current);
+      current = p;
+    } else {
+      current = candidate;
+    }
+  }
+  if(current) chunks.push(current);
+  return chunks;
+}
+
+async function synthesizeChunk(chunkText){
+  const resp = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(state.googleTtsKey), {
+    method: 'POST',
+    headers: {'content-type': 'application/json'},
+    body: JSON.stringify({
+      input: {text: chunkText},
+      voice: {languageCode: 'pt-BR', name: state.googleTtsVoice},
+      audioConfig: {audioEncoding: 'MP3'}
+    })
+  });
+  const data = await resp.json();
+  if(!resp.ok || !data.audioContent){
+    const msg = (data && data.error && data.error.message) ? data.error.message : ('HTTP ' + resp.status);
+    throw new Error(msg);
+  }
+  return data.audioContent;
+}
+
+async function speakGoogleCloud(text, onStart){
+  const chunks = splitForTts(text, 4500);
+  try{
+    // Sintetiza todos os pedaços em paralelo (mais rápido), mas toca em sequência,
+    // sempre com a mesma voz do Google Cloud escolhida nas configurações.
+    const audioContents = await Promise.all(chunks.map(synthesizeChunk));
+    for(let i = 0; i < audioContents.length; i++){
+      if(currentGoogleAudio){ currentGoogleAudio.pause(); }
+      currentGoogleAudio = new Audio('data:audio/mp3;base64,' + audioContents[i]);
+      const isFirst = i === 0;
+      const isLast = i === audioContents.length - 1;
+      currentGoogleAudio.onplay = ()=>{ startSpeakingEffect(); if(isFirst && onStart) onStart(); };
+      await new Promise(resolve=>{
+        currentGoogleAudio.onended = ()=>{ if(isLast) stopSpeakingEffect(); resolve(); };
+        currentGoogleAudio.onerror = ()=>{ if(isLast) stopSpeakingEffect(); resolve(); };
+        currentGoogleAudio.play().catch(()=> resolve());
+      });
+    }
   } catch(err){
-    console.error('Falha de conexão com Google Cloud TTS, usando voz do navegador:', err);
-    speakBrowser(text, onStart);
+    // Não troca mais silenciosamente pra voz do navegador — isso soava estranho
+    // (mudança de voz no meio da conversa). Em vez disso, avisa claramente o professor.
+    console.error('Google Cloud TTS falhou:', err);
+    if(onStart) onStart();
+    addMsg('A voz do Google Cloud falhou nesta resposta (ficou só o texto). Verifique a chave/cota em Configurações (⚙).', 'sys');
   }
 }
 

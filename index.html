@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SABIA — Professora Universal SENAI Bahia</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzVlMmZmIi8+CiAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNmZjVmZDEiLz4KICA8L2xpbmVhckdyYWRpZW50PjwvZGVmcz4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyOSIgZmlsbD0iIzA0MDcwYSIgc3Ryb2tlPSJ1cmwoI2cpIiBzdHJva2Utd2lkdGg9IjUiLz4KICA8dGV4dCB4PSIzMiIgeT0iNDQiIGZvbnQtZmFtaWx5PSJBcmlhbCwgSGVsdmV0aWNhLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjM0IiBmb250LXdlaWdodD0iYm9sZCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0idXJsKCNnKSI+UzwvdGV4dD4KPC9zdmc+">
 <style>
   :root{
     --green: #00ff8c;
@@ -305,6 +306,9 @@ const state = {
   history: []
 };
 
+/* Metodologia SENAI de Educação Profissional (MSEP 2019) - sempre disponível, independente da área detectada */
+const MSEP_SUMMARY = "A Metodologia SENAI de Educação Profissional (MSEP), versão 2019, é o método institucional que orienta o SENAI na definição de Perfis Profissionais, elaboração de Desenhos Curriculares e desenvolvimento da Prática Pedagógica em todo o país. Originada em 1999 (projeto \"Certificação Profissional Baseada em Competências\", com OIT/Cinterfor), revisada em 2002, 2004, 2006, 2009, 2013 e 2019 - esta última buscando maior sintonia com o mundo do trabalho, protagonismo do aluno e do SENAI, e cursos customizados. Não é uma prescrição rígida: cabe ao docente traduzir seus fundamentos na prática de sala de aula.\n\nA MSEP se organiza em 3 fases: (1) PERFIL PROFISSIONAL, (2) DESENHO CURRICULAR, (3) PRÁTICA PEDAGÓGICA. Competência é a mobilização de conhecimentos, habilidades e atitudes para desempenhar funções segundo padrões de qualidade e produtividade do trabalho.\n\nFASE 1 - PERFIL PROFISSIONAL: baseado em Estudos de Mercado de Trabalho (RAIS, Censo Escolar) e Tendências Tecnológicas, discutidos em Comitês Técnicos Setoriais (CTS). Método: Análise Funcional (Mansfield/Mitchell) - propósito-chave da ocupação se desdobra em Funções (unidades de competência) e Subfunções (elementos de competência), com Padrões de Desempenho associados. O Comitê de Especialistas do SENAI (CES) conduz 6 etapas: análise de estudos, mapeamento de funções/competência geral, padrões de desempenho, competências socioemocionais, ocupações intermediárias, e outras ofertas (Iniciação/Aperfeiçoamento). O CTS (multidisciplinar: SENAI, poder público, empresas, sindicatos, academia) valida com Termo de Validação. Há 5 Níveis de Qualificação (1 a 5), crescentes em complexidade/escolaridade exigida.\n\nCompetências Profissionais = Competências Específicas (técnicas) + Competências Socioemocionais (transversais: cooperação, empatia, diálogo).\n\nFASE 2 - DESENHO CURRICULAR (5 etapas): (1) Análise de Perfis Profissionais - traduz funções em Capacidades Básicas, Técnicas e Socioemocionais, nos domínios Cognitivo (Bloom: lembrar, entender, aplicar, analisar, avaliar, criar), Psicomotor e Afetivo. (2) Definição dos Módulos: MÓDULO BÁSICO (capacidades básicas/socioemocionais gerais, pré-requisito comum), MÓDULO INTRODUTÓRIO (base ligada ao perfil específico, também pré-requisito), MÓDULOS ESPECÍFICOS (um por função, com capacidades técnicas), e eventualmente MÓDULO INTEGRADOR (capacidades comuns entre áreas diferentes). (3) Unidades Curriculares: agrupam capacidades por similaridade/contiguidade ou por subfunção. (4) Organização Interna da Unidade Curricular: objetivo geral, conteúdos, carga horária, infraestrutura, acessibilidade (Lei 13.146/2015). (5) Estruturação de Itinerários Formativos: conjunto de trajetórias que permite ao aluno planejar a carreira da Iniciação Profissional à Pós-graduação, com flexibilidade e aproveitamento de módulos comuns entre ocupações.\n\nCargas horárias mínimas por tipo de curso: Iniciação Profissional (8-160h), Qualificação Profissional (mín. 160h, níveis Básica/Técnica/Tecnológica), Aperfeiçoamento Profissional (8-160h), Especialização Profissional (Básica 60h; Técnica 25% da carga do técnico de referência; Superior 360h), Habilitação Técnica de Nível Médio (mín. 800h), Graduação Tecnológica, Graduação, Pós-Graduação e Extensão.\n\n(Nota: este resumo cobre a Carta de Apresentação, Introdução, Capítulo 1 completo e a maior parte do Capítulo 2 do documento MSEP 2019; a Fase 3 - Prática Pedagógica, incluindo avaliação da aprendizagem, não estava disponível na extração usada para montar este resumo.)";
+
 /* Itinerários Nacionais SENAI pré-carregados (resumidos a partir dos PDFs oficiais do Drive) */
 const SEED_ITINERARIES = {
   "TI Hardware": "O Itinerário Nacional de Educação Profissional SENAI (versão 2024.0) da área tecnológica TI-Hardware, eixo tecnológico \"Informação e Comunicação\", segmento \"Atividades dos serviços de tecnologia da informação\", organiza a formação de profissionais que instalam, operam, configuram e reparam computadores e redes, sob normas técnicas de qualidade, saúde/segurança e \"TI Verde\".\n\nEstrutura do itinerário: 9 ocupações, do nível de qualificação inicial ao tecnólogo: (1) Montador e Reparador de Computadores; (2) Operador de Computador; (3) Instalador e Reparador de Redes de Computadores; (4) Técnico em Cibersegurança; (5) Técnico em Redes de Computadores (saídas: Instalador e Mantenedor de Redes SOHO; Redes Corporativas); (6) Técnico em Manutenção e Suporte em Informática (saídas: Montador e Mantenedor de Computadores; Instalador e Mantenedor de Redes de Computadores); (7) Especialista Técnico em Cibersegurança; (8) Técnico em Informática; (9) Tecnólogo em Redes de Computadores (saída: Administrador de Redes de Computadores). Há ainda 21 Aperfeiçoamentos Profissionais, majoritariamente em cibersegurança: Pentest (Web, Infraestrutura, Mobile), Análise Forense (Sistemas, Redes, Mobile, Computacional), Desenvolvimento Seguro, Gestão de Análises e Acessos, Governança Risk & Compliance, Análise e Gestão de Vulnerabilidades, Resposta a Incidentes e Continuidade do Negócio, quatro certificações EXIN (PDPP, PDPF, ISMP, DPO), Métodos de Defesa em Profundidade, Hardening de Sistemas e para Linux, Manutenção de Dispositivos Móveis e Inglês para TI.\n\nDetalhamento curricular (dados fiéis ao documento):\n\n- Montador e Reparador de Computadores (CBO 7311-10, FIC, nível 2): competência geral \"instalar e reparar computadores, conforme normas técnicas, de qualidade, de saúde e segurança e de TI verde\"; acesso: Ensino Fundamental completo e 16 anos; carga horária mínima 230h. Módulo BÁSICO (60h: Fundamentos da TIC 20h, Saúde e Segurança no Trabalho 12h, Fundamentos da Qualidade e Produtividade 8h, Fundamentos da Indústria 4.0 12h, Sustentabilidade nos Processos Industriais 8h); Módulo INTRODUTÓRIO (60h: Conceitos de Hardware 28h, Conceitos de Software 32h); Módulo ESPECÍFICO I (110h: Instalação de Microcomputadores 50h, Manutenção e Gestão de Microcomputadores 60h).\n\n- Operador de Computador (CBO 3172-05, FIC, nível 2): acesso: Ensino Fundamental I e 14 anos; carga horária mínima 220h. Módulos BÁSICO (60h) e INTRODUTÓRIO (60h) iguais; Módulo ESPECÍFICO I (100h: Usuário Avançado de Sistemas Operacionais 32h, Monitoramento de Computadores 10h, Pacote de Aplicações de Escritório 58h).\n\n- Instalador e Reparador de Redes de Computadores (CBO 7321-30, FIC, nível 2): acesso: Ensino Fundamental completo e 16 anos; carga horária mínima 220h.\n\nCompetências socioemocionais recorrentes: aprendizagem ativa, criatividade/iniciativa, ética, autocontrole emocional, percepção social, liderança, pensamento crítico e resolução de problemas complexos. Tendências de mercado: home office e trabalho móvel, diagnóstico automatizado, TI Verde, atualização contínua e novas exigências legais trabalhistas.",
@@ -561,8 +565,14 @@ REGRA AO CONSULTAR O ITINERÁRIO NACIONAL (para perguntas que dependem do conte�
 - Deixe claro, quando fizer sentido, que alguns itinerários nacionais do SENAI estão passando por atualização (por exemplo, os cursos da área de TI) e que o conteúdo consultado pode ser alterado a qualquer momento — por isso a informação mais recente e oficial deve sempre ser confirmada com a coordenação/documentação vigente do SENAI.
 
 DOMÍNIO E CONTEXTO ATUAL:
-- Você conhece a fundo o SENAI, o MSEP e os Itinerários Formativos Nacionais.
-- Área/eixo tecnológico carregado no momento: ${area}
+- Você conhece a fundo o SENAI, a Metodologia SENAI de Educação Profissional (MSEP) e os Itinerários Formativos Nacionais.
+
+- Resumo de referência da MSEP (use quando a pergunta for sobre a metodologia, perfil profissional, desenho curricular, módulos, competências etc.):
+"""
+${MSEP_SUMMARY}
+"""
+
+- Área/eixo tecnológico detectado automaticamente pela pergunta do professor (sem que ele precise configurar nada manualmente): ${area}
 - Conteúdo de referência do Itinerário Nacional desta área (use como fonte primária quando a pergunta for sobre ela):
 """
 ${itinerary}
@@ -573,6 +583,49 @@ Mantenha respostas objetivas o suficiente para uma professora que preza pelo tem
 }
 
 /* ---------- Send / API call ---------- */
+/* ---------- Detecção automática da área técnica pela pergunta ---------- */
+function stripAccents(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+const AREA_KEYWORDS = {
+  "TI Hardware": ["hardware", "montagem de computador", "manutencao de computador", "montador de computadores", "instalador de redes"],
+  "TI Software": ["software", "programacao", "programador", "desenvolvedor", "desenvolvimento de sistemas", "aplicativo mobile", "banco de dados", "ui/ux", "jogos digitais", "full stack", "front-end", "back-end", "front end", "back end"],
+  "Metalmecânica - Fabricação Mecânica": ["fabricacao mecanica", "usinagem", "torno", "fresadora", "cnc", "ajustagem mecanica", "caldeireiro"],
+  "Metalmecânica - Mecânica": ["mecanica industrial", "manutencao mecanica", "mecanica de precisao", "desenhista mecanico", "manutencao de maquinas industriais", "eletromecanico de maquinas"],
+  "Metalmecânica - Soldagem": ["solda", "soldagem", "soldador", "processo mag", "processo tig", "eletrodo revestido"],
+  "Metalmecânica - Metalurgia": ["metalurgia", "fundicao", "moldador de fundicao", "operador de fornos", "pintor industrial"],
+  "Química": ["quimica", "laboratorio industrial", "galvanoplastia", "processos quimicos", "biotecnologia"],
+  "Automotiva": ["automotiva", "automotivo", "veiculos pesados", "veiculos leves", "mecanica automotiva", "eletromecanico de veiculos", "funileiro", "pintor automotivo", "mecatronica automotiva"],
+  "Segurança do Trabalho": ["seguranca do trabalho", "tecnico de seguranca", "prevencionista", "cipa", "sst "],
+  "Logística": ["logistica", "almoxarife", "ppcp", "armazenagem", "controle de estoque", "comprador", "logistica portuaria"],
+  "Vestuário": ["vestuario", "costura", "modelista", "confeccao do vestuario", "assistente de estilo", "moda", "costureiro"],
+  "Couro e Calçados": ["couro", "calcados", "calcado", "curtimento", "curtidor", "sapato", "confeccionador de calcados"],
+  "Têxtil": ["textil", "malharia", "tecelagem", "fiacao", "tecelao", "urdideira"],
+  "Gestão": ["assistente contabil", "assistente administrativo", "recursos humanos", "comercio exterior", "planejamento e controle da producao", "processos gerenciais", "controle da qualidade"],
+  "Energias Renováveis": ["energia renovavel", "energias renovaveis", "sistema fotovoltaico", "energia solar", "hidrogenio verde", "energia eolica", "biomassa"],
+  "Gráfica e Mídias": ["grafica", "midias impressas", "impressao offset", "serigrafia", "design grafico", "editoracao", "flexografico", "rotografico"],
+  "Eletroeletrônica": ["eletroeletronica", "eletronica", "eletricista industrial", "equipamentos biomedicos", "eletrotecnica", "circuitos eletronicos"],
+  "Petróleo e Gás": ["petroleo", "gas natural", "sonda de petroleo", "plataformista", "torrista", "petroquimica"],
+  "Construção Civil - Instalações": ["instalacoes eletricas prediais", "instalador hidraulico", "vidraceiro", "serralheiro de aluminio", "tubulacoes a gas combustivel"],
+  "Construção Civil - Pesada": ["construcao pesada", "escavadeira hidraulica", "caminhao basculante", "caminhao betoneira", "motoniveladora", "retroescavadeira", "montador de andaimes"]
+};
+
+function detectArea(text){
+  const norm = stripAccents(text.toLowerCase());
+  let best = null, bestLen = 0;
+  for(const area in AREA_KEYWORDS){
+    for(const kw of AREA_KEYWORDS[area]){
+      const kwNorm = stripAccents(kw.toLowerCase());
+      if(norm.includes(kwNorm) && kwNorm.length > bestLen){
+        best = area;
+        bestLen = kwNorm.length;
+      }
+    }
+  }
+  return best;
+}
+
 async function sendMessage(){
   const text = userInput.value.trim();
   if(!text) return;
@@ -581,6 +634,17 @@ async function sendMessage(){
     openPanel();
     return;
   }
+
+  // Detecta automaticamente a área técnica pela pergunta, sem precisar mexer nas configurações
+  const detectedArea = detectArea(text);
+  if(detectedArea && detectedArea !== state.area){
+    state.area = detectedArea;
+    localStorage.setItem('sabia_area', state.area);
+    if(areaInput && areaInput.querySelector('option[value="' + detectedArea + '"]')){
+      areaInput.value = detectedArea;
+    }
+  }
+
   userInput.value = '';
   addMsg(text, 'user');
   state.history.push({role:'user', content:text});

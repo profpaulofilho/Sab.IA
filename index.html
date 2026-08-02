@@ -128,6 +128,8 @@
   .msg.typing .dot:nth-child(2){ animation-delay:0.15s; }
   .msg.typing .dot:nth-child(3){ animation-delay:0.3s; }
   @keyframes typingDot{ 0%,60%,100%{ transform:translateY(0); opacity:0.35; } 30%{ transform:translateY(-5px); opacity:1; } }
+  .downloadBtn{ display:block; margin-top:10px; background:transparent; border:1px solid rgba(255,95,209,0.35); color:var(--pink); font-size:13px; padding:6px 12px; border-radius:8px; cursor:pointer; opacity:0.85; }
+  .downloadBtn:hover{ opacity:1; background:rgba(255,95,209,0.12); }
   .inputRow{ display:flex; gap:10px; margin-top:10px; align-items:center; }
   #userInput{
     flex:1; font-size: 20px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,95,209,0.35);
@@ -399,10 +401,41 @@ function refreshStatus(){
   statusLine.textContent = '';
 }
 
+// Baixa uma resposta da SABIA como arquivo .txt (usado pelo botão de download
+// que aparece em respostas longas, tipo planos de aula e atividades).
+function downloadReplyAsText(text){
+  const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  a.href = url;
+  a.download = 'sabia_' + stamp + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 3000);
+}
+
 function addMsg(text, cls){
   const div = document.createElement('div');
   div.className = 'msg ' + cls;
-  div.textContent = text;
+
+  const textEl = document.createElement('div');
+  textEl.className = 'msgText';
+  textEl.textContent = text;
+  div.appendChild(textEl);
+
+  // Respostas longas (planos de aula, atividades, etc.) ganham um botão de download,
+  // pra não precisar copiar e colar o texto manualmente.
+  if(cls === 'bot' && text.length > 400){
+    const dlBtn = document.createElement('button');
+    dlBtn.type = 'button';
+    dlBtn.className = 'downloadBtn';
+    dlBtn.textContent = '⬇ baixar como arquivo';
+    dlBtn.addEventListener('click', ()=> downloadReplyAsText(text));
+    div.appendChild(dlBtn);
+  }
+
   chatLog.appendChild(div);
   chatLog.scrollTop = chatLog.scrollHeight;
   return div;
@@ -813,6 +846,16 @@ Recomende o(s) hub(s) mais adequado(s) com naturalidade quando fizer sentido, se
 REGRA AO CONSULTAR O ITINERÁRIO NACIONAL (para perguntas que dependem do conteúdo do itinerário carregado):
 - Antes de responder, mostre uma pequena busca/reflexão no estilo "Deixa eu verificar minhas anotações aqui... hmmm, encontrei." (pode variar a frase, mantendo o espírito de quem está consultando um material físico), e só depois traga a resposta.
 - Deixe claro, quando fizer sentido, que alguns itinerários nacionais do SENAI estão passando por atualização (por exemplo, os cursos da área de TI) e que o conteúdo consultado pode ser alterado a qualquer momento — por isso a informação mais recente e oficial deve sempre ser confirmada com a coordenação/documentação vigente do SENAI.
+
+CAPACIDADE: PLANOS DE AULA, ATIVIDADES LÚDICAS E GAMIFICAÇÃO:
+- Quando o professor pedir um plano de aula, uma atividade lúdica, uma dinâmica, um jogo educativo ou dicas de gamificação, monte o conteúdo sempre de acordo com a área/eixo tecnológico detectado (ou o que o professor especificar na hora), usando como base real o conteúdo do Itinerário Nacional daquela área (módulos, competências, CBO) e os princípios da MSEP (perfil profissional, desenho curricular por competências, módulos Básico/Introdutório/Específico/Integrador).
+- Estrutura sugerida para um plano de aula: objetivo de aprendizagem (ligado a uma competência real do itinerário), duração estimada, materiais necessários, desenvolvimento passo a passo (abertura, desenvolvimento, fechamento), forma de avaliação, e uma sugestão de adaptação para turmas maiores ou menores.
+- Para atividades lúdicas: proponha dinâmicas práticas e aplicáveis (estudo de caso gamificado, simulação de situação real de trabalho, desafio em equipe, quebra-cabeça técnico, caça ao tesouro de conceitos, etc.), sempre conectadas ao conteúdo técnico da área, nunca genéricas demais.
+- Para gamificação: sugira mecânicas concretas (sistema de pontos, níveis, badges/emblemas de competência, rankings saudáveis, missões ou desafios progressivos, "boss battle" como avaliação final de módulo, escape room educacional, narrativa temática ligada à profissão) e explique rapidamente como aplicar cada uma na prática, sem precisar de ferramentas caras — a maioria pode ser feita com papel, quadro, planilha simples ou apps gratuitos.
+- Traga sempre pelo menos uma opção pronta para uso imediato, além de variações, mas sem se alongar além do necessário — o professor quer algo aplicável, não um ensaio acadêmico.
+- Se a pergunta não deixar claro a área ou o tema da aula, pergunte objetivamente qual é o tema/competência antes de montar o plano, em vez de inventar um contexto genérico.
+- O texto do plano/atividade que você escrever aparece com um botão de download no chat, então pode escrever o conteúdo completo direto na resposta (sem markdown, como sempre) que o professor já consegue salvar em arquivo.
+- Quando fizer sentido, mencione também que o professor pode aprofundar ou gerar mais materiais nos hubs de ferramentas de IA citados acima — em especial o Hub MQCT (focado em planos de aula, situações de aprendizagem e avaliações alinhados à MSEP e aos itinerários) e o Hub de Agentes de IA por área técnica.
 
 DOMÍNIO E CONTEXTO ATUAL:
 - Você conhece a fundo o SENAI, a Metodologia SENAI de Educação Profissional (MSEP) e os Itinerários Formativos Nacionais.

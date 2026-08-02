@@ -123,6 +123,11 @@
   .msg.user{ align-self:flex-end; background: rgba(53,226,255,0.12); border:1px solid rgba(53,226,255,0.3); }
   .msg.bot{ align-self:flex-start; background: rgba(255,95,209,0.08); border:1px solid rgba(255,95,209,0.28); }
   .msg.sys{ align-self:center; color: var(--muted); font-size:14px; font-style:italic; }
+  .msg.typing{ align-self:flex-start; background: rgba(255,95,209,0.08); border:1px solid rgba(255,95,209,0.28); display:flex; gap:5px; align-items:center; padding:14px 16px; }
+  .msg.typing .dot{ width:7px; height:7px; border-radius:50%; background: var(--pink,#ff5fd1); opacity:0.5; animation: typingDot 1s infinite ease-in-out; }
+  .msg.typing .dot:nth-child(2){ animation-delay:0.15s; }
+  .msg.typing .dot:nth-child(3){ animation-delay:0.3s; }
+  @keyframes typingDot{ 0%,60%,100%{ transform:translateY(0); opacity:0.35; } 30%{ transform:translateY(-5px); opacity:1; } }
   .inputRow{ display:flex; gap:10px; margin-top:10px; align-items:center; }
   #userInput{
     flex:1; font-size: 20px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,95,209,0.35);
@@ -390,6 +395,17 @@ function addMsg(text, cls){
   return div;
 }
 
+// Bolha de "digitando" (3 pontinhos), usada enquanto a SABIA prepara a fala,
+// pra depois virar o texto real bem no instante em que a voz começa a tocar.
+function addTypingIndicator(){
+  const div = document.createElement('div');
+  div.className = 'msg bot typing';
+  div.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+  chatLog.appendChild(div);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return div;
+}
+
 /* ---------- Settings panel ---------- */
 function openPanel(){
   apiKeyInput.value = state.apiKey;
@@ -534,8 +550,8 @@ function stopSpeakingEffect(){
 
 let currentGoogleAudio = null;
 
-function speakBrowser(text){
-  if(!('speechSynthesis' in window)) return;
+function speakBrowser(text, onStart){
+  if(!('speechSynthesis' in window)){ if(onStart) onStart(); return; }
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   const voices = window.speechSynthesis.getVoices();
@@ -544,13 +560,13 @@ function speakBrowser(text){
   utter.lang = chosen ? chosen.lang : 'pt-BR';
   utter.rate = 0.98;
   utter.pitch = 1.05;
-  utter.onstart = startSpeakingEffect;
+  utter.onstart = ()=>{ startSpeakingEffect(); if(onStart) onStart(); };
   utter.onend = stopSpeakingEffect;
-  utter.onerror = stopSpeakingEffect;
+  utter.onerror = ()=>{ stopSpeakingEffect(); if(onStart) onStart(); };
   window.speechSynthesis.speak(utter);
 }
 
-async function speakGoogleCloud(text){
+async function speakGoogleCloud(text, onStart){
   try{
     const resp = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + encodeURIComponent(state.googleTtsKey), {
       method: 'POST',
@@ -564,27 +580,29 @@ async function speakGoogleCloud(text){
     const data = await resp.json();
     if(!resp.ok || !data.audioContent){
       console.error('Google Cloud TTS falhou, usando voz do navegador como alternativa:', data);
-      speakBrowser(text);
+      speakBrowser(text, onStart);
       return;
     }
     if(currentGoogleAudio){ currentGoogleAudio.pause(); }
     currentGoogleAudio = new Audio('data:audio/mp3;base64,' + data.audioContent);
-    currentGoogleAudio.onplay = startSpeakingEffect;
+    currentGoogleAudio.onplay = ()=>{ startSpeakingEffect(); if(onStart) onStart(); };
     currentGoogleAudio.onended = stopSpeakingEffect;
-    currentGoogleAudio.onerror = stopSpeakingEffect;
+    currentGoogleAudio.onerror = ()=>{ stopSpeakingEffect(); if(onStart) onStart(); };
     currentGoogleAudio.play();
   } catch(err){
     console.error('Falha de conexão com Google Cloud TTS, usando voz do navegador:', err);
-    speakBrowser(text);
+    speakBrowser(text, onStart);
   }
 }
 
-function speak(text){
-  if(!state.voiceOn) return;
+// onStart (opcional): chamado exatamente no instante em que a voz começa a tocar de fato
+// (seja Google Cloud ou navegador), pra permitir sincronizar o aparecimento do texto com o áudio.
+function speak(text, onStart){
+  if(!state.voiceOn){ if(onStart) onStart(); return; }
   if(state.googleTtsKey && state.googleTtsVoice){
-    speakGoogleCloud(text);
+    speakGoogleCloud(text, onStart);
   } else {
-    speakBrowser(text);
+    speakBrowser(text, onStart);
   }
 }
 
@@ -807,8 +825,20 @@ async function sendMessage(){
     }
     const reply = stripMarkdown(textBlock.text);
     state.history.push({role:'assistant', content: reply});
-    addMsg(reply, 'bot');
-    speak(reply);
+
+    // Mostra "digitando..." enquanto a voz é preparada, e só revela o texto
+    // no exato instante em que a fala começa a tocar (evita o atraso entre texto e áudio).
+    const typingDiv = addTypingIndicator();
+    let textRevealed = false;
+    const revealText = ()=>{
+      if(textRevealed) return;
+      textRevealed = true;
+      if(typingDiv.parentNode) typingDiv.remove();
+      addMsg(reply, 'bot');
+    };
+    speak(reply, revealText);
+    setTimeout(revealText, 6000); // rede de segurança, caso a voz nunca dispare o evento de início
+
   } catch(err){
     addMsg('Falha de conexão com a API: ' + err.message, 'sys');
     state.history.pop();
@@ -826,8 +856,16 @@ refreshStatus();
 
 const GREETING = 'Olá, você está com a companhia de SabIA, Sistema de Apoio à Aprendizagem Baseada em IA, uma persona que conhece os cursos técnicos do SENAI, além da Metodologia Senai de educação profissional.';
 function greet(){
-  addMsg(GREETING, 'bot');
-  speak(GREETING);
+  const typingDiv = addTypingIndicator();
+  let textRevealed = false;
+  const revealText = ()=>{
+    if(textRevealed) return;
+    textRevealed = true;
+    if(typingDiv.parentNode) typingDiv.remove();
+    addMsg(GREETING, 'bot');
+  };
+  speak(GREETING, revealText);
+  setTimeout(revealText, 6000);
 }
 if('speechSynthesis' in window && window.speechSynthesis.getVoices().length === 0){
   window.speechSynthesis.onvoiceschanged = function(){ populateVoices(); greet(); window.speechSynthesis.onvoiceschanged = populateVoices; };

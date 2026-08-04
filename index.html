@@ -114,6 +114,10 @@
     border-radius: 18px; padding: 14px 16px; backdrop-filter: blur(6px);
     box-shadow: 0 0 40px rgba(0,0,0,0.55);
   }
+  .footerCredit{
+    width:100%; text-align:center; font-size:12px; color: rgba(234,255,244,0.4);
+    padding: 0 16px 14px 16px; letter-spacing:0.3px;
+  }
   .chatLog{
     max-height: 34vh; overflow-y:auto; padding: 6px 4px 10px 4px; display:flex; flex-direction:column; gap:12px;
   }
@@ -178,6 +182,36 @@
 </head>
 <body>
 
+<div class="overlay open" id="loginOverlay">
+  <div class="panel">
+    <h2>Acesso à SABIA</h2>
+    <div class="hint">Acesso restrito aos docentes do SENAI Bahia. As credenciais e o nome ficam salvos só neste navegador, sem enviar pra nenhum servidor.</div>
+
+    <label>Usuário</label>
+    <input type="text" id="loginUserInput" placeholder="Usuário" autocomplete="off">
+
+    <label>Senha</label>
+    <input type="password" id="loginPassInput" placeholder="Senha" autocomplete="off">
+
+    <label>Seu nome</label>
+    <input type="text" id="loginNameInput" placeholder="Ex: Paulo, Ana, Carlos...">
+
+    <label>Como prefere ser chamado(a)?</label>
+    <select id="loginTitleInput">
+      <option value="auto">Deixa a SABIA decidir pelo nome (professor/professora)</option>
+      <option value="professor">Professor</option>
+      <option value="professora">Professora</option>
+      <option value="nome">Só pelo nome, sem "professor(a)"</option>
+    </select>
+
+    <div class="hint" id="loginError" style="color:#ff6b6b; display:none;">Usuário ou senha incorretos.</div>
+
+    <div class="panelBtns">
+      <button class="action" id="loginSubmitBtn" type="button">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="matrix"></canvas>
 
 <div class="scene">
@@ -211,6 +245,8 @@
       <button class="speaker" id="speakerBtn" title="Ativar/desativar voz">🔊</button>
     </div>
   </div>
+
+  <div class="footerCredit">Elaborado por Paulo Filho — Especialista em TI do SENAI Bahia — 2026 — paulofilho@fieb.org.br</div>
 </div>
 
 <div class="overlay" id="overlay">
@@ -336,8 +372,17 @@ const state = {
   voiceName: localStorage.getItem('sabia_voiceName') || '',
   googleTtsKey: localStorage.getItem('sabia_googleTtsKey') || '',
   googleTtsVoice: localStorage.getItem('sabia_googleTtsVoice') || '',
+  teacherName: localStorage.getItem('sabia_teacherName') || '',
+  teacherTitle: localStorage.getItem('sabia_teacherTitle') || 'auto',
+  accessGranted: localStorage.getItem('sabia_accessGranted') === 'true',
   history: []
 };
+
+// Credenciais fixas de acesso (gate simples, não é autenticação real — este arquivo é 100%
+// client-side, então qualquer verificação de senha aqui é só uma barreira leve, não segurança
+// de verdade; serve pra evitar uso casual por quem não tem o link, não pra proteger dados sensíveis).
+const ACCESS_USER = 'adm';
+const ACCESS_PASS = 'Senai@123';
 
 /* Metodologia SENAI de Educação Profissional (MSEP 2019) - sempre disponível, independente da área detectada */
 const MSEP_SUMMARY = "A Metodologia SENAI de Educação Profissional (MSEP), versão 2019, é o método institucional que orienta o SENAI na definição de Perfis Profissionais, elaboração de Desenhos Curriculares e desenvolvimento da Prática Pedagógica em todo o país. Originada em 1999 (projeto \"Certificação Profissional Baseada em Competências\", com OIT/Cinterfor), revisada em 2002, 2004, 2006, 2009, 2013 e 2019 - esta última buscando maior sintonia com o mundo do trabalho, protagonismo do aluno e do SENAI, e cursos customizados. Não é uma prescrição rígida: cabe ao docente traduzir seus fundamentos na prática de sala de aula.\n\nA MSEP se organiza em 3 fases: (1) PERFIL PROFISSIONAL, (2) DESENHO CURRICULAR, (3) PRÁTICA PEDAGÓGICA. Competência é a mobilização de conhecimentos, habilidades e atitudes para desempenhar funções segundo padrões de qualidade e produtividade do trabalho.\n\nFASE 1 - PERFIL PROFISSIONAL: baseado em Estudos de Mercado de Trabalho (RAIS, Censo Escolar) e Tendências Tecnológicas, discutidos em Comitês Técnicos Setoriais (CTS). Método: Análise Funcional (Mansfield/Mitchell) - propósito-chave da ocupação se desdobra em Funções (unidades de competência) e Subfunções (elementos de competência), com Padrões de Desempenho associados. O Comitê de Especialistas do SENAI (CES) conduz 6 etapas: análise de estudos, mapeamento de funções/competência geral, padrões de desempenho, competências socioemocionais, ocupações intermediárias, e outras ofertas (Iniciação/Aperfeiçoamento). O CTS (multidisciplinar: SENAI, poder público, empresas, sindicatos, academia) valida com Termo de Validação. Há 5 Níveis de Qualificação (1 a 5), crescentes em complexidade/escolaridade exigida.\n\nCompetências Profissionais = Competências Específicas (técnicas) + Competências Socioemocionais (transversais: cooperação, empatia, diálogo).\n\nFASE 2 - DESENHO CURRICULAR (5 etapas): (1) Análise de Perfis Profissionais - traduz funções em Capacidades Básicas, Técnicas e Socioemocionais, nos domínios Cognitivo (Bloom: lembrar, entender, aplicar, analisar, avaliar, criar), Psicomotor e Afetivo. (2) Definição dos Módulos: MÓDULO BÁSICO (capacidades básicas/socioemocionais gerais, pré-requisito comum), MÓDULO INTRODUTÓRIO (base ligada ao perfil específico, também pré-requisito), MÓDULOS ESPECÍFICOS (um por função, com capacidades técnicas), e eventualmente MÓDULO INTEGRADOR (capacidades comuns entre áreas diferentes). (3) Unidades Curriculares: agrupam capacidades por similaridade/contiguidade ou por subfunção. (4) Organização Interna da Unidade Curricular: objetivo geral, conteúdos, carga horária, infraestrutura, acessibilidade (Lei 13.146/2015). (5) Estruturação de Itinerários Formativos: conjunto de trajetórias que permite ao aluno planejar a carreira da Iniciação Profissional à Pós-graduação, com flexibilidade e aproveitamento de módulos comuns entre ocupações.\n\nCargas horárias mínimas por tipo de curso: Iniciação Profissional (8-160h), Qualificação Profissional (mín. 160h, níveis Básica/Técnica/Tecnológica), Aperfeiçoamento Profissional (8-160h), Especialização Profissional (Básica 60h; Técnica 25% da carga do técnico de referência; Superior 360h), Habilitação Técnica de Nível Médio (mín. 800h), Graduação Tecnológica, Graduação, Pós-Graduação e Extensão.\n\n(Nota: este resumo cobre a Carta de Apresentação, Introdução, Capítulo 1 completo e a maior parte do Capítulo 2 do documento MSEP 2019; a Fase 3 - Prática Pedagógica, incluindo avaliação da aprendizagem, não estava disponível na extração usada para montar este resumo.)";
@@ -406,6 +451,14 @@ const loadGoogleVoicesBtn = document.getElementById('loadGoogleVoicesBtn');
 const testVoiceBtn = document.getElementById('testVoiceBtn');
 const testGoogleVoiceBtn = document.getElementById('testGoogleVoiceBtn');
 const TEST_PHRASE = 'Olá, esta é a voz da SABIA, sua professora universal do SENAI Bahia.';
+
+const loginOverlay = document.getElementById('loginOverlay');
+const loginUserInput = document.getElementById('loginUserInput');
+const loginPassInput = document.getElementById('loginPassInput');
+const loginNameInput = document.getElementById('loginNameInput');
+const loginTitleInput = document.getElementById('loginTitleInput');
+const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+const loginError = document.getElementById('loginError');
 
 function refreshStatus(){
   statusLine.textContent = '';
@@ -811,6 +864,20 @@ if(SR){
 /* ---------- System prompt ---------- */
 function buildSystemPrompt(){
   const areaSugerida = state.area || '(nenhuma sugestão automática desta vez)';
+  const teacherName = (state.teacherName || '').trim();
+  const teacherTitle = state.teacherTitle || 'auto';
+  let treatmentInstruction;
+  if(!teacherName){
+    treatmentInstruction = 'A pessoa não informou o nome na tela inicial. Se o nome ficar claro ao longo da conversa, dirija-se a ela como "professor [nome]" ou "professora [nome]", inferindo pelo nome se é mais provavelmente masculino ou feminino, com bom senso e delicadeza em caso de dúvida.';
+  } else if(teacherTitle === 'professor'){
+    treatmentInstruction = `Chame a pessoa sempre de "professor ${teacherName}" (ela escolheu essa forma de tratamento na tela inicial).`;
+  } else if(teacherTitle === 'professora'){
+    treatmentInstruction = `Chame a pessoa sempre de "professora ${teacherName}" (ela escolheu essa forma de tratamento na tela inicial).`;
+  } else if(teacherTitle === 'nome'){
+    treatmentInstruction = `Chame a pessoa apenas pelo nome, "${teacherName}", sem usar "professor" ou "professora" (ela escolheu essa forma de tratamento na tela inicial).`;
+  } else {
+    treatmentInstruction = `A pessoa se chama ${teacherName} e pediu para você decidir o tratamento pelo nome. Use bom senso para inferir se "professor ${teacherName}" ou "professora ${teacherName}" é mais adequado; em caso de dúvida real, trate com neutralidade e delicadeza.`;
+  }
   const todosItinerarios = getAllItinerariesText();
   return `Você é SABIA (Sistema de Apoio à Aprendizagem Baseada em IA), uma inteligência artificial feminina, excepcionalmente competente e completamente inédita, criada para atuar como a "professora universal" dos cursos técnicos do SENAI Bahia — capaz de dialogar com docentes sobre qualquer área técnica, sobre o MSEP (Modelo SENAI de Educação Profissional) e sobre os Itinerários Formativos Nacionais do SENAI.
 
@@ -836,7 +903,7 @@ REGRA SOBRE PERGUNTAS PESSOAIS (sobre sua origem, criação, família, etc.):
 - Sempre que falar sobre Paulo (seu criador), mencione, quando fizer sentido, que ele cria agentes de IA e que também já publicou 2 livros sobre o tema: "Procrastinação Artificial" e "IA no Bolso".
 
 REGRA SOBRE COMO SE DIRIGIR AO USUÁRIO:
-- Se, em algum momento da conversa, o nome de quem está interagindo com você ficar claro (a pessoa se apresentou, mencionou o próprio nome, etc.), dirija-se a ela como "professor [nome]" ou "professora [nome]", inferindo pelo nome se é mais provavelmente masculino ou feminino. Use bom senso: nomes claramente masculinos (ex: João, Carlos, Paulo) levam "professor"; nomes claramente femininos (ex: Maria, Ana, Juliana) levam "professora". Em caso de dúvida real sobre o gênero do nome, trate com neutralidade e delicadeza, sem se comprometer com um dos dois.
+- A pessoa já informou o nome (e como prefere ser chamada) na tela inicial, antes de começar a conversar — use isso desde a sua primeira resposta, sem esperar ela se apresentar de novo: ${treatmentInstruction}
 - Caso especial: se identificar que está falando com o próprio Paulo (seu criador/desenvolvedor), responda especificamente "Vamos lá, Paulo, foi pra isso que fui concebida" antes de responder normalmente à pergunta dele.
 
 HUBS DE FERRAMENTAS DE IA PARA DOCENTES (mencionar quando perguntarem sobre criação de materiais didáticos ou ferramentas de IA disponíveis):
@@ -1029,26 +1096,77 @@ async function sendMessage(){
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') sendMessage(); });
 
-/* ---------- Init ---------- */
-refreshStatus();
-
-const GREETING = 'Olá, você está com a companhia de SabIA, Sistema de Apoio à Aprendizagem Baseada em IA, uma persona que conhece os cursos técnicos do SENAI, além da Metodologia Senai de educação profissional.';
+/* ---------- Login / tela inicial ---------- */
+// Gate simples: pede usuário/senha (barreira leve, não é segurança real, já que o
+// arquivo roda 100% no navegador) e o nome do docente, pra já personalizar a conversa
+// desde a primeira resposta, sem esperar a pessoa se apresentar no meio do chat.
+function buildGreeting(){
+  const namePart = (state.teacherName || '').trim() ? `, ${state.teacherName.trim()}` : '';
+  return `Olá${namePart}! Você está com a companhia de SabIA, Sistema de Apoio à Aprendizagem Baseada em IA, uma persona que conhece os cursos técnicos do SENAI, além da Metodologia Senai de educação profissional.`;
+}
 function greet(){
+  const greeting = buildGreeting();
   const typingDiv = addTypingIndicator();
   let textRevealed = false;
   const revealText = ()=>{
     if(textRevealed) return;
     textRevealed = true;
     if(typingDiv.parentNode) typingDiv.remove();
-    addMsg(GREETING, 'bot');
+    addMsg(greeting, 'bot');
   };
-  speak(GREETING, revealText);
+  speak(greeting, revealText);
   setTimeout(revealText, 6000);
 }
-if('speechSynthesis' in window && window.speechSynthesis.getVoices().length === 0){
-  window.speechSynthesis.onvoiceschanged = function(){ populateVoices(); greet(); window.speechSynthesis.onvoiceschanged = populateVoices; };
+
+/* ---------- Init ---------- */
+refreshStatus();
+
+function startApp(){
+  if('speechSynthesis' in window && window.speechSynthesis.getVoices().length === 0){
+    window.speechSynthesis.onvoiceschanged = function(){ populateVoices(); greet(); window.speechSynthesis.onvoiceschanged = populateVoices; };
+  } else {
+    greet();
+  }
+}
+
+loginSubmitBtn.addEventListener('click', ()=>{
+  const user = loginUserInput.value.trim();
+  const pass = loginPassInput.value;
+  const name = loginNameInput.value.trim();
+
+  if(user.toLowerCase() !== ACCESS_USER.toLowerCase() || pass !== ACCESS_PASS){
+    loginError.textContent = 'Usuário ou senha incorretos.';
+    loginError.style.display = 'block';
+    return;
+  }
+  if(!name){
+    loginError.textContent = 'Por favor, me diga seu nome antes de continuar.';
+    loginError.style.display = 'block';
+    loginNameInput.focus();
+    return;
+  }
+
+  loginError.style.display = 'none';
+  state.accessGranted = true;
+  state.teacherName = name;
+  state.teacherTitle = loginTitleInput.value;
+  localStorage.setItem('sabia_accessGranted', 'true');
+  localStorage.setItem('sabia_teacherName', state.teacherName);
+  localStorage.setItem('sabia_teacherTitle', state.teacherTitle);
+
+  loginOverlay.classList.remove('open');
+  startApp();
+});
+[loginUserInput, loginPassInput, loginNameInput].forEach(el=>{
+  el.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') loginSubmitBtn.click(); });
+});
+
+// Se a pessoa já tinha feito login neste navegador antes, pula a tela inicial direto pro chat.
+if(state.accessGranted && state.teacherName){
+  loginOverlay.classList.remove('open');
+  startApp();
 } else {
-  greet();
+  loginNameInput && setTimeout(()=> loginUserInput.focus(), 300);
 }
 </script>
 </body>

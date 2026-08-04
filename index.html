@@ -220,7 +220,10 @@
       <div class="brand">SABIA</div>
       <div class="subbrand">Sistema de Apoio à Aprendizagem Baseada em IA · SENAI BAHIA</div>
     </div>
-    <div class="iconbtn" id="settingsBtn" title="Configurações">⚙</div>
+    <div style="display:flex; gap:10px;">
+      <div class="iconbtn" id="switchUserBtn" title="Trocar de docente / novo usuário">👤</div>
+      <div class="iconbtn" id="settingsBtn" title="Configurações">⚙</div>
+    </div>
   </div>
 
   <div class="avatarWrap">
@@ -438,6 +441,7 @@ const speakerBtn = document.getElementById('speakerBtn');
 const statusLine = document.getElementById('statusLine');
 const overlay = document.getElementById('overlay');
 const settingsBtn = document.getElementById('settingsBtn');
+const switchUserBtn = document.getElementById('switchUserBtn');
 const closePanel = document.getElementById('closePanel');
 const savePanel = document.getElementById('savePanel');
 const apiKeyInput = document.getElementById('apiKey');
@@ -528,6 +532,16 @@ function openPanel(){
   overlay.classList.add('open');
 }
 settingsBtn.addEventListener('click', openPanel);
+
+// Troca de docente: limpa o nome salvo e volta pra tela de login, pra outra pessoa usar
+// o mesmo computador/aba sem ficar sendo chamada pelo nome de quem usou antes.
+switchUserBtn.addEventListener('click', ()=>{
+  if(!confirm('Trocar de docente? Isso vai voltar pra tela de login e limpar a conversa atual.')) return;
+  localStorage.removeItem('sabia_accessGranted');
+  localStorage.removeItem('sabia_teacherName');
+  localStorage.removeItem('sabia_teacherTitle');
+  location.reload();
+});
 closePanel.addEventListener('click', ()=> overlay.classList.remove('open'));
 savePanel.addEventListener('click', ()=>{
   state.apiKey = apiKeyInput.value.trim();

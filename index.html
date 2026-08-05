@@ -1025,6 +1025,43 @@ function detectArea(text){
   return best;
 }
 
+// Chama a API da Anthropic com retry automático quando o servidor deles está sobrecarregado
+// (erro "Overloaded" / HTTP 529) ou com limite de taxa (429) — erros temporários do lado deles,
+// não da SABIA. Tenta de novo com espera crescente antes de desistir e mostrar erro ao professor.
+async function callAnthropicWithRetry(){
+  const maxRetries = 3;
+  let resp, data;
+  for(let attempt = 0; attempt <= maxRetries; attempt++){
+    resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': state.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: state.model,
+        max_tokens: 2048,
+        system: buildSystemPrompt(),
+        messages: state.history
+      })
+    });
+    data = await resp.json();
+    if(resp.ok) return {resp, data};
+
+    const isOverloaded = resp.status === 529 || (data && data.error && data.error.type === 'overloaded_error');
+    const isRateLimited = resp.status === 429;
+    if((isOverloaded || isRateLimited) && attempt < maxRetries){
+      statusLine.textContent = 'servidor da IA ocupado, tentando de novo (' + (attempt + 1) + '/' + maxRetries + ')...';
+      await new Promise(r => setTimeout(r, 1500 * Math.pow(2, attempt))); // 1.5s, 3s, 6s
+      continue;
+    }
+    return {resp, data};
+  }
+  return {resp, data};
+}
+
 async function sendMessage(){
   const text = userInput.value.trim();
   if(!text) return;
@@ -1051,24 +1088,12 @@ async function sendMessage(){
   statusLine.textContent = 'pensando...';
 
   try{
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': state.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: state.model,
-        max_tokens: 2048,
-        system: buildSystemPrompt(),
-        messages: state.history
-      })
-    });
-    const data = await resp.json();
+    const {resp, data} = await callAnthropicWithRetry();
     if(!resp.ok){
-      const errMsg = (data && data.error && data.error.message) ? data.error.message : ('erro HTTP ' + resp.status);
+      const isOverloaded = resp.status === 529 || (data && data.error && data.error.type === 'overloaded_error');
+      const errMsg = isOverloaded
+        ? 'os servidores da Anthropic estão temporariamente sobrecarregados (isso é do lado deles, não da SABIA). Já tentei de novo automaticamente algumas vezes — espere um minuto e tente novamente.'
+        : ((data && data.error && data.error.message) ? data.error.message : ('erro HTTP ' + resp.status));
       addMsg('Deu erro ao falar com a API: ' + errMsg, 'sys');
       state.history.pop(); // remove a pergunta do histórico pra poder tentar de novo sem corromper a conversa
       return;

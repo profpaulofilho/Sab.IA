@@ -1208,5 +1208,16 @@ if(state.accessGranted && state.teacherName){
   loginNameInput && setTimeout(()=> loginUserInput.focus(), 300);
 }
 </script>
+   <script>
+fetch('https://rbqaspkaytbplgrplelf.supabase.co/rest/v1/rpc/increment_link_click', {
+  method: 'POST',
+  headers: {
+    'apikey': 'sb_publishable_5ANXG4JTOaZAeINpeoTPmA_AmMxohtR',
+    'authorization': 'Bearer sb_publishable_5ANXG4JTOaZAeINpeoTPmA_AmMxohtR',
+    'content-type': 'application/json'
+  },
+  body: JSON.stringify({p_site_key: 'sabia'})
+}).catch(()=>{});
+</script>
 </body>
 </html>
